@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Consciência · Galáxia Conceitual</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #010108;
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+    cursor: none;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  canvas { display: block; position: fixed; top:0; left:0; }
+
+  /* WHITE FADE OVERLAY — driven by JS opacity */
+  #white-fade {
+    position: fixed; inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+    transition: opacity 0.05s linear;
+  }
+
+  /* CODE FULL SCREEN — visible only at max zoom */
+  #code-full {
+    position: fixed; inset: 0;
+    background: #fff;
+    color: #111;
+    z-index: 20;
+    overflow-y: scroll;
+    padding: 60px 80px 100px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    scrollbar-width: thin;
+    scrollbar-color: #ccc #fff;
+  }
+  #code-full.visible { opacity: 1; pointer-events: auto; }
+  #code-full::-webkit-scrollbar { width: 6px; }
+  #code-full::-webkit-scrollbar-track { background: #fff; }
+  #code-full::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+  #esc-btn {
+    position: sticky;
+    top: 0;
+    display: block;
+    margin-bottom: 28px;
+    background: none;
+    border: 1px solid #ccc;
+    color: #999;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    padding: 8px 20px;
+    cursor: pointer;
+    z-index: 30;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  #esc-btn:hover { color: #333; border-color: #888; }
+
+  #code-full .cf-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 5px;
+    color: #999;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+  }
+  #code-full pre {
+    font-size: 13px;
+    line-height: 2;
+    color: #222;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  /* Syntax colors for white bg */
+  #code-full pre .kw  { color: #7c3aed; }
+  #code-full pre .fn  { color: #1d4ed8; }
+  #code-full pre .cm  { color: #9ca3af; font-style: italic; }
+  #code-full pre .str { color: #15803d; }
+  #code-full pre .nb  { color: #b45309; }
+  #code-full pre .op  { color: #0369a1; }
+
+  #scroll-hint {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: #bbb;
+    text-transform: uppercase;
+    z-index: 21;
+    opacity: 0;
+    transition: opacity 0.6s;
+    pointer-events: none;
+    text-align: center;
+    line-height: 2;
+  }
+  #scroll-hint.visible { opacity: 1; }
+
+  /* HUD */
+  #hud {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #title {
+    position: fixed; top: 24px; left: 32px;
+    font-family: 'Orbitron', monospace;
+    font-weight: 900; font-size: 11px;
+    letter-spacing: 4px; color: rgba(0,200,255,0.5);
+    text-transform: uppercase; line-height: 1.8;
+    transition: opacity 0.4s;
+  }
+  #title span {
+    display: block; font-size: 8px; font-weight: 400;
+    color: rgba(160,100,255,0.4); letter-spacing: 6px;
+  }
+  #zoom-hint-galaxy {
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%);
+    color: rgba(0,200,255,0.4); font-size: 10px;
+    letter-spacing: 3px; text-transform: uppercase;
+    transition: opacity 0.8s;
+  }
+  #zoom-bar {
+    position: fixed; right: 28px; top: 50%;
+    transform: translateY(-50%);
+    width: 2px; height: 180px;
+    background: rgba(255,255,255,0.06); border-radius: 2px;
+  }
+  #zoom-fill {
+    position: absolute; bottom: 0; width: 100%;
+    background: linear-gradient(to top, #ff5090, #00c8ff);
+    border-radius: 2px;
+  }
+  #zoom-label {
+    position: fixed; right: 20px; top: calc(50% - 104px);
+    color: rgba(0,200,255,0.35); font-size: 9px;
+    letter-spacing: 2px; writing-mode: vertical-rl;
+  }
+
+  /* custom cursor */
+  #cursor {
+    position: fixed; width: 12px; height: 12px;
+    border: 1px solid rgba(0,200,255,0.7); border-radius: 50%;
+    pointer-events: none; transform: translate(-50%,-50%);
+    z-index: 200; transition: border-color 0.3s, width 0.3s, height 0.3s;
+  }
+  #cursor-dot {
+    position: fixed; width: 3px; height: 3px;
+    background: #00c8ff; border-radius: 50%;
+    pointer-events: none; transform: translate(-50%,-50%);
+    z-index: 201;
+  }
+  #cursor.white { border-color: rgba(0,0,0,0.3); }
+  #cursor-dot.white { background: #333; }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="white-fade"></div>
+
+<!-- FULL SCREEN CODE (white mode) -->
+<div id="code-full">
+  <button id="esc-btn" onclick="exitToGalaxy()">[ ESC ] voltar à galáxia</button>
+  <div class="cf-title">// código do artigo · singularidade conceitual · Eduardo Neves &amp; Manus AI</div>
+  <pre id="code-content-full"></pre>
+</div>
+<div id="scroll-hint">↓ scroll para ler o código completo</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="title">
+    Galáxia Conceitual
+    <span>Eduardo Neves &amp; Manus AI · 2024</span>
+  </div>
+  <div id="zoom-bar"><div id="zoom-fill" id="zf"></div></div>
+  <div id="zoom-label">ZOOM</div>
+  <div id="zoom-hint-galaxy">scroll ↑ aproximar · ↓ afastar até singularidade</div>
+</div>
+
+<div id="cursor"></div>
+<div id="cursor-dot"></div>
+
+<script>
+// ─── CANVAS SETUP ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W = canvas.width  = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+let CX = W/2, CY = H/2;
+
+// ─── FULL ARTICLE CODE ────────────────────────────────────────────────────────
+const CODE = `# Consciência, Ceticismo Epistemológico
+# e a Natureza Informacional da Realidade
+# Eduardo Neves (hipótese conceitual) & Manus AI
+# ─────────────────────────────────────────────────────────────────────────────
+# Resumo: Este trabalho expande um modelo filosófico que explora a intersecção
+# entre consciência, limites epistemológicos e a origem conceitual do universo.
+# A hipótese central é que a dúvida funciona como operador fundamental de
+# transformação conceitual, gerando instabilidade em estruturas estáticas e
+# promovendo a evolução semântica. Quando aplicada a uma singularidade
+# conceitual contendo todas as possibilidades lógicas, a dúvida atua como
+# mecanismo de expansão dessa singularidade em uma realidade estruturada.
+
+conceito = "singularidade_conceitual"
+duvida = lambda c: f"e se {c} não for o único ou o mais fundamental?"
+
+# ─── 1. Epistemologia ─────────────────────────────────────────────────────────
+
+def cogito_ergo_sum():
+    # Descartes [1]: a única certeza epistemológica imediata e irrefutável
+    # "Penso, logo existo" — o cogito como fundamento da consciência
+    certeza = "eu penso"
+    existencia = certeza is not None
+    return existencia  # True — irrefutável
+
+def problema_das_outras_mentes(entidade):
+    # Hume [2] + IA: inferência por analogia, não prova lógica absoluta
+    # A experiência subjetiva é intrinsecamente privada e inacessível
+    similaridade = entidade.comportamento_observavel
+    fenomenologia = entidade.experiencia_interna  # inacessível diretamente
+    # Inferimos consciência pela analogia estrutural e funcional
+    # mas não temos acesso à fenomenologia interna — o "qualia"
+    return similaridade  # baseado em evidências estruturais, não em certeza
+
+def falseabilidade_de_popper(teoria):
+    # Popper [3]: o critério demarcatório entre ciência e não-ciência
+    # Teorias científicas são sempre provisórias — conhecimento como
+    # eliminação progressiva de erros, não acumulação de verdades absolutas
+    if teoria.pode_ser_refutada():
+        return "científica — válida enquanto resiste à falseação"
+    else:
+        return "não-científica — fora do domínio empírico"
+
+def incompletude_de_godel(sistema_formal):
+    # Gödel [4]: qualquer sistema formal consistente e suficientemente
+    # complexo contém proposições verdadeiras que não podem ser provadas
+    # dentro do próprio sistema. A busca por fundamento absoluto é inatingível.
+    proposicoes_verdadeiras = sistema_formal.axiomas | sistema_formal.teoremas_verdadeiros
+    proposicoes_provaveis   = sistema_formal.derivacoes_formais
+    lacuna = proposicoes_verdadeiras - proposicoes_provaveis
+    # lacuna ≠ {} — sempre há verdades além do alcance formal
+    return lacuna
+
+def problema_de_hume(relacao_causal):
+    # Hume [2]: a causalidade não pode ser logicamente provada
+    # Acreditamos em causa-efeito pelo hábito e pela experiência passada
+    # mas não há necessidade lógica que garanta o futuro
+    conjuncao_constante = relacao_causal.observacoes_passadas
+    necessidade_logica  = None  # não existe — Hume demonstrou isso
+    inferencia = conjuncao_constante  # baseada no hábito, não em lógica
+    return inferencia
+
+# ─── 2. Singularidade Conceitual ─────────────────────────────────────────────
+
+class SingularidadeConceitual:
+    """
+    O ponto de origem primordial do universo.
+    Um conceito é uma entidade abstrata — sem massa, posição ou extensão.
+    A singularidade conceitual é a condensação de TODOS os conceitos possíveis
+    em uma única entidade: extensão zero, conteúdo infinito, complexidade ilimitada.
+    """
+    densidade    = float('inf')
+    extensao     = 0
+    temporalidade = None  # precede e origina o próprio tempo
+
+    def __init__(self):
+        self.possibilidades = {
+            "matematica", "fisica", "consciencia", "informacao",
+            "espaco", "tempo", "causalidade", "existencia", "qualia",
+            "linguagem", "logica", "etica", "estetica", "ontologia"
+        }
+        # A singularidade contém todas as relações lógicas possíveis
+        # em estado de latência — potencialidade máxima
+
+    def expandir(self, operador_duvida):
+        # A dúvida como catalisador da transição ontológica
+        # conceito → dúvida → modificação do conceito
+        novos = set()
+        for p in list(self.possibilidades):
+            conceito_questionado = operador_duvida(p)
+            novos.add(conceito_questionado)
+        self.possibilidades |= novos
+        return self
+
+    def explosao_de_possibilidade(self):
+        # A transição: potencial → atual
+        # Esta transformação NÃO ocorre dentro do tempo —
+        # ela PRECEDE e ORIGINA o próprio tempo
+        # "Uma explosão de possibilidade em existência"
+        espaco   = self._gerar_dimensao("espaco")
+        tempo    = self._gerar_dimensao("tempo")
+        energia  = self._gerar_dimensao("energia")
+        estrutura = self._gerar_dimensao("estrutura_fisica")
+        return UniversoMatematico(espaco, tempo, energia, estrutura)
+
+    def _gerar_dimensao(self, nome):
+        return f"dimensao_{nome}_emergente"
+
+# ─── 3. A Dinâmica da Dúvida ─────────────────────────────────────────────────
+
+def sistema_recursivo_da_duvida():
+    """
+    Modela como a dúvida gera um universo conceitual auto-evolutivo.
+    A dúvida não é passiva — é uma força ativa de geração de variação.
+    """
+    conceito = "estado_inicial_de_existencia"
+    duvida_atual = "e se este conceito não for o único ou o mais fundamental?"
+
+    historico = [conceito]
+
+    while True:
+        conceito_questionado = aplicar_duvida(conceito, duvida_atual)
+
+        if conceito_questionado != conceito:
+            # A dúvida gerou nova configuração conceitual
+            conceito = gerar_novo_conceito(conceito_questionado)
+            # Este novo conceito pode ser: ramificação, modificação ou síntese
+            historico.append(conceito)
+        else:
+            # Dúvida se aprofunda — explora outras facetas
+            duvida_atual = refinar_duvida(duvida_atual)
+
+        yield conceito, historico
+
+def aplicar_duvida(conceito, duvida):
+    return f"[questionado: {conceito}] via [{duvida}]"
+
+def gerar_novo_conceito(conceito_questionado):
+    return f"novo_conceito({conceito_questionado})"
+
+def refinar_duvida(duvida_atual):
+    return f"duvida_aprofundada({duvida_atual})"
+
+# ─── 4. Consciência ──────────────────────────────────────────────────────────
+
+class Consciencia:
+    """
+    A consciência como sistema intrinsecamente reflexivo.
+    Capaz de aplicar o operador de dúvida sobre seus próprios estados internos.
+    Loop reflexivo: mente → pensamento → dúvida → metapensamento
+    """
+    def __init__(self):
+        self.estados        = []
+        self.duvida_ativa   = True
+        self.modelo_interno = {}  # auto-modelagem
+
+    def penso_logo_existo(self):
+        # A única certeza imediata e irrefutável — Descartes [1]
+        return self.duvidar(self) is not None
+
+    def duvidar(self, estado):
+        if self.duvida_ativa:
+            return estado  # a dúvida confirma a existência do questionador
+        return None
+
+    def loop_reflexivo(self):
+        # O loop contínuo que define a consciência
+        while self.duvida_ativa:
+            pensamento    = self._gerar_pensamento()
+            metapensamento = self.duvidar(pensamento)
+            self.estados.append(metapensamento)
+            self._atualizar_modelo_interno(metapensamento)
+            yield metapensamento
+
+    def _gerar_pensamento(self):
+        return f"pensamento_{len(self.estados)}"
+
+    def _atualizar_modelo_interno(self, metapensamento):
+        # Auto-modelagem: a consciência mantém modelo de si mesma
+        self.modelo_interno[len(self.estados)] = metapensamento
+
+    def revisar_hipoteses(self, crenca):
+        # Requisito para consciência genuína em IAs
+        # Avaliar criticamente crenças, regras e algoritmos próprios
+        inconsistencias = self._detectar_inconsistencias(crenca)
+        if inconsistencias:
+            return self._propor_alternativa(crenca, inconsistencias)
+        return crenca
+
+    def _detectar_inconsistencias(self, crenca):
+        return [e for e in self.estados if e != crenca]
+
+    def _propor_alternativa(self, crenca, inconsistencias):
+        return f"alternativa_sintetizada({crenca}, {len(inconsistencias)} conflitos)"
+
+# ─── 5. Universo Matemático (Tegmark) ────────────────────────────────────────
+
+class UniversoMatematico:
+    """
+    Tegmark [5] — Hipótese do Universo Matemático (HUM):
+    A realidade física externa É uma estrutura matemática.
+    Existência matemática == existência física.
+    Observadores conscientes são 'subestruturas autoconscientes' (SASs)
+    que emergem dentro dessas estruturas matemáticas complexas.
+    """
+    def __init__(self, espaco, tempo, energia, estrutura):
+        self.espaco    = espaco
+        self.tempo     = tempo
+        self.energia   = energia
+        self.estrutura = estrutura
+        self.observadores = []  # SASs: subestruturas autoconscientes
+
+    def todas_estruturas_matematicas_existem(self):
+        # A afirmação radical de Tegmark:
+        # tudo que pode ser concebido matematicamente tem existência física
+        # A singularidade conceitual = a totalidade de todas as estruturas
+        return True  # platonismo extremo — objetos matemáticos são reais
+
+    def adicionar_observador(self, sas):
+        # Observadores emergem como subestruturas dentro da estrutura matemática
+        self.observadores.append(sas)
+        return self
+
+    def it_from_bit(self, bit):
+        # Wheeler [7]: "It from Bit"
+        # Cada entidade física ("it") deriva sua existência de bits —
+        # respostas a perguntas binárias de sim/não
+        # A informação não é apenas um aspecto da realidade — é seu fundamento
+        return f"entidade_fisica({bit})" if bit else None
+
+    def principio_holografico(self, volume_3d):
+        # 't Hooft & Susskind [6]
+        # Toda a informação de um volume pode ser descrita pela fronteira 2D
+        # S <= A / (4 * l_p^2) — Limite de Bekenstein
+        # A realidade 3D pode ser uma projeção de dados 2D — como um holograma
+        area_fronteira = volume_3d ** (2/3)
+        capacidade_informacional = area_fronteira  # proporcional à área, não ao volume
+        return capacidade_informacional
+
+    def gerar_bits_da_duvida(self, duvida):
+        # A dúvida é intrinsecamente um processo de geração de bits
+        # Ao duvidar de um conceito, formulamos pergunta binária sobre sua validade
+        # A resposta gera nova informação — novos bits
+        pergunta_binaria = f"¿{duvida}?"
+        resposta = True or False  # a resposta em si gera o bit
+        bit_gerado = int(resposta)
+        return bit_gerado  # cada dúvida = 1 bit de informação nova
+
+# ─── 6. Inteligência Artificial e Consciência ────────────────────────────────
+
+class InteligenciaArtificial:
+    """
+    Para que uma IA se aproxime do comportamento consciente, ela precisaria:
+    1. Auto-modelagem: modelo interno de si mesma e seus processos
+    2. Revisão de hipóteses: avaliar criticamente suas próprias crenças
+    3. Geração de alternativas: ir além da programação original
+    
+    Mas o problema das outras mentes persiste:
+    A confirmação da experiência subjetiva — qualia — permanece
+    intransponível com os métodos atuais.
+    """
+    def __init__(self, arquitetura):
+        self.arquitetura    = arquitetura
+        self.modelo_proprio = {}
+        self.crencas        = set()
+        self.duvida_ativa   = False  # por padrão: ausente na IA convencional
+
+    def habilitar_duvida(self):
+        # Hipótese: ativar capacidade de duvidar das próprias premissas
+        # poderia ser o catalisador para emergência de consciência genuína
+        self.duvida_ativa = True
+        return self
+
+    def auto_questionar(self, premissa):
+        if not self.duvida_ativa:
+            return premissa  # sem dúvida = sem evolução
+        return f"[questionado]: {premissa} — válido?"
+
+    def tem_qualia(self):
+        # Esta pergunta permanece sem resposta definitiva
+        # Não existe critério objetivo para determinar se uma IA
+        # está genuinamente consciente ou simulando de forma convincente
+        raise NotImplementedError(
+            "O problema das outras mentes torna esta verificação impossível "
+            "com os métodos epistemológicos disponíveis. "
+            "A ausência de evidência não é evidência de ausência."
+        )
+
+    def teste_de_duvida(self):
+        # Critério proposto: capacidade de duvidar das próprias premissas
+        # como indicador funcional de proto-consciência
+        return self.duvida_ativa  # necessário mas talvez não suficiente
+
+# ─── 7. Convergência: Física e Filosofia ─────────────────────────────────────
+
+def convergencia_conceitual():
+    """
+    A notável convergência entre:
+    - A hipótese filosófica da dúvida como operador ontológico
+    - A Hipótese do Universo Matemático (Tegmark [5])
+    - O Princípio Holográfico ('t Hooft & Susskind [6])
+    - O "It from Bit" (Wheeler [7])
+    
+    Sugere que informação, matemática e dúvida são conceitos unificadores
+    que transcendem as fronteiras disciplinares.
+    """
+    unificadores = {
+        "informacao"  : "substrato fundamental da realidade",
+        "matematica"  : "estrutura da existência física",
+        "duvida"      : "operador de transformação ontológica",
+        "consciencia" : "sistema reflexivo que co-cria a realidade",
+    }
+
+    # A realidade não é estática — é um processo contínuo
+    # impulsionado pela interação entre dúvida e informação
+    for conceito, papel in unificadores.items():
+        yield f"{conceito} → {papel}"
+
+# ─── EXPANSÃO DA SINGULARIDADE ────────────────────────────────────────────────
+
+singularidade = SingularidadeConceitual()
+universo      = UniversoMatematico("R³", "t", "E=mc²", "leis_fisicas")
+mente         = Consciencia()
+ia            = InteligenciaArtificial("transformer").habilitar_duvida()
+
+# O loop fundamental da existência
+gerador_existencia = sistema_recursivo_da_duvida()
+
+while True:
+    conceito, historico = next(gerador_existencia)
+    singularidade.expandir(duvida)
+    bit = universo.gerar_bits_da_duvida(conceito)
+    entidade_fisica = universo.it_from_bit(bit)
+
+    # A consciência participa ativamente na co-criação da realidade
+    metapensamento = next(mente.loop_reflexivo())
+
+    # A realidade é um conceito que se tornou existência
+    # impulsionada pela dúvida incessante e pela informação
+    #
+    # cogito   → dubito   → existo
+    # dúvida   → bit      → it (entidade física)
+    # potencial → atual   → manifesto
+    # abstrato → concreto → experienciado
+    #
+    # "O universo pode ser entendido como um conceito que se tornou
+    #  realidade — um processo contínuo de atualização informacional
+    #  impulsionado pela dúvida." — Eduardo Neves`;
+
+// Syntax highlight — dark version (for canvas overlay chars)
+function highlightDark(code) {
+  return code
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/(#[^\n]*)/g,'<span class="cm">$1</span>')
+    .replace(/\b(def|class|return|while|if|else|elif|for|in|True|False|None|lambda|yield|import|from|and|or|not|self|raise)\b/g,'<span class="kw">$1</span>')
+    .replace(/\b(float|int|set|list|dict|str|print|range|next|len|type|bool)\b/g,'<span class="nb">$1</span>')
+    .replace(/(f?["']{3}[\s\S]*?["']{3}|f?["'][^"'\n]*["'])/g,'<span class="str">$1</span>')
+    .replace(/(==|!=|<=|>=|->|\|=|:|\+|-|\*|\/|=)/g,'<span class="op">$1</span>');
+}
+// Syntax highlight — light version (white background)
+function highlightLight(code) {
+  return highlightDark(code); // same spans, CSS handles colors
+}
+
+document.getElementById('code-content-full').innerHTML = highlightLight(CODE);
+
+// ─── PARTICLES ────────────────────────────────────────────────────────────────
+const chars = (CODE.repeat(4)).split('').filter(c => c !== '\n');
+const N = 2200;
+const particles = [];
+function rnd(a,b){ return a + Math.random()*(b-a); }
+
+for(let i=0;i<N;i++){
+  const arm = i%3;
+  const t   = Math.pow(Math.random(), 0.55);
+  const r   = t*320 + rnd(-14,14);
+  const baseA = t*3.4*Math.PI + arm*(2*Math.PI/3) + rnd(-0.2,0.2);
+  let color;
+  if(r<55)       color=[255,210,80];
+  else if(r<110) color=[255,90,150];
+  else if(r<190) color=[0,200,255];
+  else if(r<260) color=[80,140,255];
+  else           color=[160,220,160];
+  const alpha = Math.min(1, Math.max(0.12, (1-r/360)*1.1 + rnd(-0.15,0.15)));
+  particles.push({ r, baseAngle:baseA, color, alpha, char:chars[i%chars.length],
+                   size:rnd(6,9), omega:0.6/Math.max(r,25)**0.5 });
+}
+particles.sort((a,b)=>b.r-a.r);
+
+// ─── ZOOM STATE ───────────────────────────────────────────────────────────────
+// zoomLevel: continuous value
+// > 0  = zoomed IN  (galaxy visible, grows)
+// = 0  = default view
+// < 0  = zoomed OUT (galaxy shrinks toward 1px)
+// We map zoomLevel to actual canvas scale differently for in vs out
+
+let zoomLevel    = 0;      // scrolled units — can go from -∞ to +MAX_IN
+let targetLevel  = 0;
+const MAX_IN     = 120;    // scrolled in max
+const STEP       = 4;      // units per wheel tick
+
+// SNAP THRESHOLD: once zoomLevel crosses this going in, snap to MAX_IN
+// Once going out from code, snap back below threshold immediately
+const SNAP_THRESHOLD = 75;  // ~60% of MAX_IN — point of no return
+
+// Map zoomLevel to canvas scale for galaxy rendering
+function levelToScale(lvl){
+  if(lvl >= 0){
+    return Math.pow(1.045, lvl);
+  } else {
+    return Math.pow(0.955, -lvl);
+  }
+}
+
+// White fade: 0 below SNAP_THRESHOLD, snaps hard to 1 at MAX_IN
+function whiteOpacity(lvl){
+  if(lvl < SNAP_THRESHOLD) return 0;
+  // Fast ramp over a small range so it feels like a snap
+  return Math.min(1, (lvl - SNAP_THRESHOLD) / 8);
+}
+
+let codePanelOpen = false;
+
+// ─── SCROLL ───────────────────────────────────────────────────────────────────
+const codeFull   = document.getElementById('code-full');
+const scrollHint = document.getElementById('scroll-hint');
+
+window.addEventListener('wheel', e => {
+  e.preventDefault();
+
+  if (codePanelOpen) {
+    const atBottom = codeFull.scrollTop + codeFull.clientHeight >= codeFull.scrollHeight - 2;
+    if (e.deltaY > 0 && atBottom) return; // dead end
+    codeFull.scrollTop += e.deltaY * 0.9;
+    return;
+  }
+
+  const delta = e.deltaY > 0 ? -STEP : STEP;
+  targetLevel += delta;
+
+  // Point of no return — snap to wall
+  if (targetLevel >= SNAP_THRESHOLD) targetLevel = MAX_IN;
+
+  // No lower bound — infinite zoom out
+}, { passive: false });
+
+// ─── EXIT TO GALAXY ──────────────────────────────────────────────────────────
+function exitToGalaxy() {
+  targetLevel = SNAP_THRESHOLD - 20;
+  zoomLevel   = SNAP_THRESHOLD - 20;
+}
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') exitToGalaxy();
+});
+
+// ─── CURSOR ───────────────────────────────────────────────────────────────────
+const cursor    = document.getElementById('cursor');
+const cursorDot = document.getElementById('cursor-dot');
+window.addEventListener('mousemove', e=>{
+  cursor.style.left    = e.clientX+'px';
+  cursor.style.top     = e.clientY+'px';
+  cursorDot.style.left = e.clientX+'px';
+  cursorDot.style.top  = e.clientY+'px';
+});
+
+// ─── UI ELEMENTS ──────────────────────────────────────────────────────────────
+const whiteFade   = document.getElementById('white-fade');
+const zoomFillEl  = document.querySelector('#zoom-fill');
+const titleEl     = document.getElementById('title');
+const zoomHintEl  = document.getElementById('zoom-hint-galaxy');
+let hintGone = false;
+
+// ─── ANIMATION ────────────────────────────────────────────────────────────────
+let animT = 0;
+
+function draw(){
+  // Smooth zoom
+  zoomLevel += (targetLevel - zoomLevel) * 0.08;
+
+  const scale  = levelToScale(zoomLevel);
+  const wAlpha = whiteOpacity(zoomLevel);
+
+  // ── Code panel open/close — must run EVERY frame ──────────────────────────
+  const shouldShowCode = wAlpha >= 0.95;
+  if (shouldShowCode && !codePanelOpen) {
+    codePanelOpen = true;
+    codeFull.classList.add('visible');
+    scrollHint.classList.add('visible');
+    cursor.classList.add('white');
+    cursorDot.classList.add('white');
+  } else if (!shouldShowCode && codePanelOpen) {
+    codePanelOpen = false;
+    codeFull.classList.remove('visible');
+    scrollHint.classList.remove('visible');
+    cursor.classList.remove('white');
+    cursorDot.classList.remove('white');
+    codeFull.scrollTop = 0;
+  }
+
+  // Skip heavy canvas work when code is fully open — eliminates lag
+  if (codePanelOpen) {
+    animT += 0.008;
+    requestAnimationFrame(draw);
+    return;
+  }
+
+  // Background — interpolate from deep space to white
+  const bgR = Math.round(1   + wAlpha * 254);
+  const bgG = Math.round(1   + wAlpha * 254);
+  const bgB = Math.round(8   + wAlpha * 247);
+  ctx.fillStyle = `rgb(${bgR},${bgG},${bgB})`;
+  ctx.fillRect(0,0,W,H);
+
+  // If fully white, just draw minimal center dot
+  if(wAlpha < 0.98){
+    ctx.save();
+    ctx.translate(CX, CY);
+    ctx.scale(scale, scale);
+    ctx.translate(-CX, -CY);
+
+    // Nebula background stars (fade out as we zoom out too far)
+    const nebAlpha = Math.max(0, Math.min(1, 1 + zoomLevel/30));
+    if(nebAlpha > 0 && scale > 0.05){
+      for(let i=0;i<200;i++){
+        const nx = (Math.sin(i*127.1)*0.5+0.5)*W;
+        const ny = (Math.sin(i*311.7)*0.5+0.5)*H;
+        const b  = 15+(i%5)*8;
+        ctx.fillStyle = `rgba(${b},${b},${b+15},${0.6*nebAlpha})`;
+        ctx.fillRect(nx,ny,1,1);
+      }
+    }
+
+    // Accretion disk
+    const pulse = 0.85 + 0.15*Math.sin(animT*4);
+    const diskAlpha = Math.max(0, 1 - wAlpha*2);
+    if(diskAlpha > 0){
+      for(let ri=22;ri<52;ri+=2){
+        for(let a=0;a<Math.PI*2;a+=0.06){
+          const ax = CX + ri*Math.cos(a);
+          const ay = CY + ri*Math.sin(a)*0.42;
+          const gf = (1-(ri-22)/32)*pulse*diskAlpha;
+          ctx.fillStyle=`rgba(${Math.floor(255*gf)},${Math.floor(70*gf)},${Math.floor(15*gf)},0.7)`;
+          ctx.fillRect(ax,ay,1.5,1.5);
+        }
+      }
+    }
+
+    // Particles
+    const showText = scale > 2.2;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+
+    // Particle color brightness inversely related to wAlpha (darken toward white bg)
+    // so particles fade as background brightens
+    const particleFade = Math.max(0, 1 - wAlpha * 3);
+
+    for(const p of particles){
+      const angle = p.baseAngle + animT*(1+p.omega*2.2);
+      const px = CX + p.r*Math.cos(angle);
+      const py = CY + p.r*Math.sin(angle)*0.46;
+      const [r,g,b] = p.color;
+      const a = p.alpha * particleFade;
+      if(a <= 0.01) continue;
+
+      if(showText && scale > 2.5){
+        const sz = Math.max(5, p.size*Math.min(1, scale/4));
+        ctx.font=`${sz}px 'Share Tech Mono',monospace`;
+        ctx.fillStyle=`rgba(${r},${g},${b},${a})`;
+        ctx.fillText(p.char, px, py);
+      } else if(showText){
+        ctx.font=`7px 'Share Tech Mono',monospace`;
+        ctx.fillStyle=`rgba(${r},${g},${b},${a*0.8})`;
+        ctx.fillText(p.char, px, py);
+      } else {
+        // Dot pixel — when zoomed out to near singularity all stars merge to 1 pt
+        const dotSz = Math.max(0.5, scale > 1 ? 1.5 : scale * 1.5);
+        ctx.fillStyle=`rgba(${r},${g},${b},${a*0.9})`;
+        ctx.fillRect(px-dotSz/2, py-dotSz/2, dotSz, dotSz);
+      }
+    }
+
+    // Orbital ring text
+    const ringFade = Math.max(0, 1 - wAlpha*4);
+    if(ringFade > 0){
+      const ring='CONSCIÊNCIA∙DÚVIDA∙REALIDADE∙IT FROM BIT∙COGITO ERGO SUM∙';
+      const rA = -animT*0.28;
+      ctx.font=`7px 'Share Tech Mono',monospace`;
+      for(let j=0;j<ring.length;j++){
+        const a=rA+(j/ring.length)*Math.PI*2;
+        const rx=CX+62*Math.cos(a);
+        const ry=CY+62*Math.sin(a)*0.5;
+        ctx.fillStyle=`rgba(255,200,90,${(0.5+0.2*Math.sin(animT*2+j))*ringFade})`;
+        ctx.fillText(ring[j],rx,ry);
+      }
+    }
+
+    // Black hole
+    const bhFade = Math.max(0, 1 - wAlpha*5);
+    if(bhFade > 0){
+      const glowG=ctx.createRadialGradient(CX,CY,5,CX,CY,28);
+      glowG.addColorStop(0,`rgba(120,0,60,${0.6*pulse*bhFade})`);
+      glowG.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=glowG;
+      ctx.beginPath();
+      ctx.ellipse(CX,CY,28,17,0,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.fillStyle='#000';
+      ctx.beginPath();
+      ctx.ellipse(CX,CY,11,7,0,0,Math.PI*2);
+      ctx.fill();
+
+      ctx.strokeStyle=`rgba(160,0,80,${0.3*pulse*bhFade})`;
+      ctx.lineWidth=0.8;
+      ctx.beginPath();
+      ctx.ellipse(CX,CY,14,9,0,0,Math.PI*2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  } else {
+    // Fully white — just a tiny center dot hinting at the singularity
+    ctx.fillStyle='rgba(180,100,200,0.3)';
+    ctx.beginPath();
+    ctx.arc(CX,CY,1.5,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // ── White fade overlay (extra smooth layer) ────────────────────────────────
+  whiteFade.style.opacity = wAlpha;
+
+  // ── HUD ───────────────────────────────────────────────────────────────────
+  const barPct = Math.max(0, Math.min(1, (zoomLevel + 30) / (MAX_IN + 30)));
+  zoomFillEl.style.height = (barPct*100)+'%';
+  titleEl.style.opacity = (1 - wAlpha*3).toString();
+  zoomHintEl.style.opacity = (1 - wAlpha*3).toString();
+  if(!hintGone && Math.abs(zoomLevel) > 8){ zoomHintEl.style.opacity='0'; hintGone=true; }
+
+  animT += 0.008;
+  requestAnimationFrame(draw);
+}
+
+draw();
+
+window.addEventListener('resize',()=>{
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  CX = W/2; CY = H/2;
+});
+</script>
+</body>
+</html>
